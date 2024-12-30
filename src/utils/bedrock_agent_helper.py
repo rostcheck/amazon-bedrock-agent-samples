@@ -734,17 +734,16 @@ class AgentsForAmazonBedrock:
             time.sleep(10)
 
             if verbose:
+                _bedrock_agent_bedrock_allow_policy_statement = DEFAULT_AGENT_IAM_POLICY
+                _bedrock_policy_json = json.dumps(
+                    _bedrock_agent_bedrock_allow_policy_statement
+                )
                 print(
                     f"Role {_agent_role_name} created. ARN: {_agent_role['Role']['Arn']}"
                 )
                 print(
                     f"Adding bedrock_allow_policy to role {_agent_role_name}\n{_bedrock_policy_json}..."
                 )
-
-            _bedrock_agent_bedrock_allow_policy_statement = DEFAULT_AGENT_IAM_POLICY
-            _bedrock_policy_json = json.dumps(
-                _bedrock_agent_bedrock_allow_policy_statement
-            )
 
             self._iam_client.put_role_policy(
                 PolicyDocument=_bedrock_policy_json,

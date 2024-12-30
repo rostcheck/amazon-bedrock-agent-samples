@@ -1,0 +1,31 @@
+Event processing flow - analyzed from bedrock_agent_helper invoke():
+event (contains) chunk: pickup answer and fully cite it
+event[trace]
+- callerChain: picks up multi agent names
+- routingClassifierTrace: routing
+  - modelInvocationInput: route to collaborator
+  - modelInvocationOutput: track tokens and time
+    - UNDECIDABLE_CLASSIFICATION: could not route
+    - keep_previous_agent: continuing previous conversation
+    - default: chose collaborator
+  - failureTrace: report failure
+  - orchestrationTrace
+    - rationale: trace "rationale"
+    - invocationInput
+      - actionGroupInvocationInput: trace "using tool"
+        - outline or full formatting
+      - agentCollaboratorInvocationInput: pick up detail about collaborator agent and trace it
+         - outline or full formatting
+      - codeInterpreterInvocationInput: trace using code interpreter and maybe display code
+      - knowledgeBaseLookupInput: trace knowledge base invocaton
+    - observation:
+      - actionGroupInvocationOutput: trace tool outputs
+      - agentCollaboratorInvocationOutput: trace collaborator output
+      - knowledgeBaseLookupOutput: trace knowledge base lookup output and refs
+      - finalResponse: trace final response
+  - modelInvocationOutput: trace using sub agent/step, track stats
+  - preProcessingTrace:
+    - modelInvocationOutput: track stats, trace initial plan
+  - postProcessingTrace:
+    - modelInvocationOutput: track stats, trace post-processing complete
+
