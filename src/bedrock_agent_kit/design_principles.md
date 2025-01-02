@@ -10,7 +10,7 @@
 
 ### 2. Infrastructure State Management
 - Act as synchronized control layer for Bedrock's configuration state
-- Handle creation and management of IAM roles and policies [1]
+- Handle creation and management of IAM roles and policies
 - Manage associated AWS resources (Lambda functions, S3 buckets, etc.)
 - Support attaching to existing Bedrock infrastructure
 - Enable clean deletion of all associated resources

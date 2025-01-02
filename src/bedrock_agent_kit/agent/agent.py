@@ -1,11 +1,11 @@
 import uuid
 from textwrap import dedent
-from typing import List, Optional
+from typing import Optional
 import boto3
-from botocore.config import Config
 from botocore.exceptions import ClientError
 from .event_stream_processor import EventStreamProcessor, StandardEventProcessor
 from src.utils.bedrock_agent_helper import AgentsForAmazonBedrock
+from .output_formatter import OutputFormatter, BasicOutputFormatter
 from ..tool import Tool
 from ..knowledge_base import KnowledgeBase
 
@@ -27,129 +27,54 @@ class Agent:
     """Represents a Bedrock Agent with associated tools and knowledge bases."""
 
     class Status:
-        UNINITIALIZED = "UNINITIALIZED"
+        NOT_PREPARED = "NOT_PREPARED"
         CREATING = "CREATING"
-        READY = "READY"
-        FAILED = "FAILED"
+        PREPARING = "PREPARING"
+        PREPARED = "PREPARED"
         DELETING = "DELETING"
+        FAILED = "FAILED"
+        VERSIONING = "VERSIONING"
+        UPDATING = "UPDATING"
 
-    def __init__(self, agent_id: str, name: str, event_processor: Optional[EventStreamProcessor] = None, session=None):
+    def __init__(self, agent_id: str,
+                 name: str,
+                 agent_alias_id: str = "TSTALIASID",
+                 agent_alias_arn: str = None,
+                 event_processor: Optional[EventStreamProcessor] = None,
+                 output_formatter: Optional[OutputFormatter] = None,
+                 session=None):
+        # Store internal variables
         self.agent_id = agent_id
         self.name = name
-        self._tools = []
-        self._knowledge_bases = []
+        self._status = self.Status.NOT_PREPARED
+        self._collaboration_mode = "DISABLED"
+        self._agent_alias_id = agent_alias_id
+        self._agent_alias_arn = agent_alias_arn
         self._event_processor = event_processor or StandardEventProcessor()
-        self._alias_id = None
-        self._status = Agent.Status.UNINITIALIZED
+        self._f = output_formatter or BasicOutputFormatter()
 
-        # Initialize session and clients
+        # Initialize clients with default configurations
         self.session = session or boto3.Session()
-        self._bedrock_client = None
-        self._bedrock_runtime = None
-        self._bedrock_agent_client = None
-        self._bedrock_agent_runtime = None
-
-    @property
-    def bedrock_client(self):
-        """Lazy initialization of bedrock client with retry configuration."""
-        if self._bedrock_client is None:
-            self._bedrock_client = self.session.client(
-                'bedrock',
-                config=Config(
-                    retries={'max_attempts': 3},
-                    connect_timeout=5,
-                    read_timeout=60
-                )
-            )
-        return self._bedrock_client
-
-    @property
-    def bedrock_runtime(self):
-        """Lazy initialization of bedrock runtime client."""
-        if self._bedrock_runtime is None:
-            self._bedrock_runtime = self.session.client(
-                'bedrock-runtime',
-                config=Config(
-                    retries={'max_attempts': 3},
-                    connect_timeout=5,
-                    read_timeout=300  # Longer timeout for model inference
-                )
-            )
-        return self._bedrock_runtime
-
-    @property
-    def bedrock_agent_client(self):
-        """Lazy initialization of bedrock agent client."""
-        if self._bedrock_agent_client is None:
-            self._bedrock_agent_client = self.session.client(
-                'bedrock-agent',
-                config=Config(
-                    retries={'max_attempts': 3},
-                    connect_timeout=5,
-                    read_timeout=60
-                )
-            )
-        return self._bedrock_agent_client
-
-    @property
-    def bedrock_agent_runtime(self):
-        """Lazy initialization of bedrock agent runtime client."""
-        if self._bedrock_agent_runtime is None:
-            self._bedrock_agent_runtime = self.session.client(
-                'bedrock-agent-runtime',
-                config=Config(
-                    retries={'max_attempts': 3},
-                    connect_timeout=5,
-                    read_timeout=300  # Longer timeout for agent operations
-                )
-            )
-        return self._bedrock_agent_runtime
-
-    def _handle_client_error(self, error: ClientError, operation: callable, *args, **kwargs):
-        """Handle client errors and retry once if credentials are expired."""
-        if self._is_expired_credentials_error(error):
-            # Reset relevant client based on the operation's __self__ attribute
-            client_instance = operation.__self__
-            if client_instance is self._bedrock_client:
-                self._bedrock_client = None
-            elif client_instance is self._bedrock_runtime:
-                self._bedrock_runtime = None
-            elif client_instance is self._bedrock_agent_client:
-                self._bedrock_agent_client = None
-            elif client_instance is self._bedrock_agent_runtime:
-                self._bedrock_agent_runtime = None
-
-            # Retry the operation once
-            return operation(*args, **kwargs)
-        raise error
-
-    @staticmethod
-    def _is_expired_credentials_error(error: ClientError) -> bool:
-        """Check if the error is related to expired credentials."""
-        error_code = error.response.get('Error', {}).get('Code')
-        return error_code in ['ExpiredToken', 'RequestExpired', 'InvalidClientTokenId']
+        self._bedrock_client = self.session.client('bedrock')
+        self._bedrock_runtime = self.session.client('bedrock-runtime')
+        self._bedrock_agent_client = self.session.client('bedrock-agent')
+        self._bedrock_agent_runtime = self.session.client('bedrock-agent-runtime')
+        self._agent_helper = AgentsForAmazonBedrock()
 
     @classmethod
     def create(cls,
                name: str,
                instructions: str,
                model: str = DEFAULT_AGENT_MODEL,
-               idle_time_ttl: int = 3600,
-               event_processor: Optional[EventStreamProcessor] = None) -> "Agent":
+               event_processor: Optional[EventStreamProcessor] = None,
+               output_formatter: Optional[OutputFormatter] = None) -> "Agent":
         """Create a new Bedrock Agent."""
 
         event_processor = event_processor or StandardEventProcessor()
-        print(f"Creating agent {name}...")
+        f = output_formatter or BasicOutputFormatter()
+        f.output(f"Creating agent {name}...")
 
         trimmed_instructions = dedent(instructions[0: MAX_DESCR_SIZE - 1])
-        # instructions = f"Role: {self.role}, \nGoal: {self.goal}, \nInstructions: {self.instructions}"
-
-        # add workaround in instructions, since default prompts can yield hallucinations for tool use calls
-        # if self.tool_code is None and self.tool_defs is None:
-        # if tools is None and self.tool_code is None and self.tool_defs is None:
-        #     self.instructions += (
-        #         "\nYou have no available tools. Rely only on your own knowledge."
-        #     )
 
         agents_helper = AgentsForAmazonBedrock()
         (agent_id, agent_alias_id, agent_alias_arn) = (
@@ -163,37 +88,45 @@ class Agent:
                 verbose=True,
             )
         )
+        f.output(f"Created agent, id: {agent_id}, alias id: {agent_alias_id}\n")
 
-        print(
-            f"Created agent, id: {agent_id}, alias id: {agent_alias_id}\n"
-        )
         # Create an instance of the Agent class attached to the agent
-        agent = cls(agent_id=agent_id, name=name, event_processor=event_processor)
-        agent._alias_id = agent_alias_id
+        agent = cls(agent_id=agent_id,
+                    name=name,
+                    agent_alias_id=agent_alias_id,
+                    agent_alias_arn=agent_alias_arn,
+                    event_processor=event_processor,
+                    output_formatter=output_formatter)
         return agent
+
+    def _wait_until_prepared(self):
+        # Wait until the agent state is 'PREPARED'
+        self._agent_helper.wait_agent_status_update(self.agent_id)
+        # _agent_helper doesn't actually return the status, get it via lower level API
+        status = self.status
+        if status != Agent.Status.PREPARED:
+            raise RuntimeError(f"Agent {self.agent_id} is not prepared. Status: {status}")
 
     def invoke(self, prompt: str, session_id=str(uuid.uuid1())) -> str:
         """Send a prompt to the agent and get response."""
-        try:
-            # If the agent is not prepared, prepare it before invoking
-            if self.status != Agent.Status.READY:
-                agents_helper = AgentsForAmazonBedrock()
-                agents_helper.prepare(self.name)
-
-            response = self.bedrock_agent_runtime.invoke_agent(
-                agentId=self.agent_id,
-                agentAliasId=self._alias_id,
-                sessionId=session_id,
-                inputText=prompt,
-                enableTrace=True
+        # If the agent is not prepared, prepare it before invoking
+        if self.status != Agent.Status.PREPARED:
+            self._agent_helper.prepare(self.name)
+            self._wait_until_prepared()
+            response = self._bedrock_agent_client.create_agent_alias(
+                agentAliasName="with-code-ag", agentId=self.agent_id
             )
-        except ClientError as e:
-            response = self._handle_client_error(e, self.bedrock_agent_runtime.invoke_agent,
-                                                 agentId=self.agent_id,
-                                                 agentAliasId=self._alias_id,
-                                                 sessionId=session_id,
-                                                 inputText=prompt,
-                                                 enableTrace=True)
+            self._agent_alias_id = response["agentAlias"]["agentAliasId"]
+            self._agent_alias_arn = response["agentAlias"]["agentAliasArn"]
+            self._agent_helper.wait_agent_alias_status_update(self.agent_id, self._agent_alias_id)
+
+        response = self._bedrock_agent_runtime.invoke_agent(
+            agentId=self.agent_id,
+            agentAliasId=self._agent_alias_id,
+            sessionId=session_id,
+            inputText=prompt,
+            enableTrace=True
+        )
 
         # Process the event stream
         event_stream = response['completion']
@@ -202,41 +135,69 @@ class Agent:
         return self._event_processor.get_response()
 
     @classmethod
-    def attach_by_id(cls, agent_id: str) -> "Agent":
+    def attach_by_id(cls, agent_id: str, output_formatter: Optional[OutputFormatter] = None) -> "Agent":
         """Attach to existing Bedrock Agent by ID."""
+        f = output_formatter or BasicOutputFormatter()
         try:
             # Create a temporary client to get agent details
             client = boto3.client('bedrock-agent')
             response = client.get_agent(agentId=agent_id)
             agent_details = response["agent"]
 
+            agents_helper = AgentsForAmazonBedrock()
+
             # Create agent instance with retrieved details
-            return cls(agent_id=agent_id, name=agent_details.get("agentName", ""))
+            agent_alias_id = agents_helper.get_agent_latest_alias_id(agent_id)
+            agent_alias_arn = agents_helper.get_agent_alias_arn(agent_id, agent_alias_id)
+            name =  agent_details.get("agentName", "")
+            return cls(agent_id=agent_id, name=name)
 
         except ClientError as e:
-            print(f"Couldn't connect to agent {agent_id}. {e}")
+            f.output(f"Couldn't connect to agent {agent_id}. {e}")
             raise
 
     @classmethod
-    def attach_by_arn(cls, agent_arn: str) -> "Agent":
+    def attach_by_arn(cls, agent_arn: str, output_formatter: Optional[OutputFormatter] = None) -> "Agent":
         """Attach to existing Bedrock Agent by ARN."""
         # ARN format: arn:aws:bedrock:<region>:<account>:agent/<agent_id>
         agent_id = agent_arn.split('/')[-1]
-        return cls.attach_by_id(agent_id)
+        return cls.attach_by_id(agent_id, output_formatter)
 
     @classmethod
-    def attach_by_name(cls, agent_name: str) -> "Agent":
+    def attach_by_name(cls, agent_name: str, output_formatter: Optional[OutputFormatter] = None) -> "Agent":
         """Attach to existing Bedrock Agent by name."""
         client = boto3.client('bedrock-agent')
         agents = client.list_agents()['agentSummaries']
         matching = [a for a in agents if a['agentName'] == agent_name]
         if not matching:
             raise ValueError(f"No agent found with name {agent_name}")
-        return cls.attach_by_id(matching[0]['agentId'])
+        return cls.attach_by_id(matching[0]['agentId'], output_formatter)
+
+    def enable_code_interpretation(self) -> None:
+        """Enable code interpretation on this Agent."""
+        self._agent_helper.add_code_interpreter(self.name)
 
     def attach_tool(self, tool: Tool) -> None:
         """Attach a tool to this agent."""
-        pass
+        # add_action_group_with_lambda() doesn't check if the lambda already exists
+        # For now, we check if it does and delete it, although this isn't optimal behavior #TODO: review
+        lambda_client = boto3.client('lambda')
+        try:
+            lambda_client.get_function(FunctionName=tool.name)
+            lambda_client.delete_function(FunctionName=tool.name)
+            self._f.output(f"Deleted existing lambda {tool.name}")
+        except lambda_client.exceptions.ResourceNotFoundException:
+            pass  # Lambda doesn't exist, no need to delete
+
+        tool_defs = [tool.to_action_group_definition()]
+        self._agent_helper.add_action_group_with_lambda(
+            self.name,
+            tool.name,
+            tool.code_file,
+            tool_defs,  # One function for now, generalize to handle groups later
+            tool.name,  # Using tool name as the action group name
+            f"actions for {tool.description}"
+        )
 
     def attach_knowledge_base(self, kb: "KnowledgeBase") -> None:
         """Attach a knowledge base to this agent."""
@@ -244,24 +205,13 @@ class Agent:
 
     def delete(self) -> None:
         """Delete the agent and cleanup resources."""
-        agents_helper = AgentsForAmazonBedrock()
-        agents_helper.delete_agent(self.name)
+        # for tool in agents_helper.get_tools(self.name): # TODO: Delete tools
+        #    tool.delete()
+        self._agent_helper.delete_agent(self.name)
 
     @property
     def status(self) -> str:
+        response = self._bedrock_agent_client.get_agent(agentId=self.agent_id)
+        self._status = response["agent"]["agentStatus"]
         """Get current agent status."""
         return self._status
-
-    @property
-    def tools(self) -> List["Tool"]:
-        """Get list of attached tools."""
-        return self._tools.copy()
-
-    @property
-    def knowledge_bases(self) -> List["KnowledgeBase"]:
-        """Get list of attached knowledge bases."""
-        return self._knowledge_bases.copy()
-
-    def _prepare(self) -> None:
-        """Internal method to prepare agent for use."""
-        pass
