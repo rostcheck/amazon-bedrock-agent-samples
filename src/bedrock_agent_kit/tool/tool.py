@@ -1,6 +1,4 @@
-from tkinter.font import names
-
-from .schema import ParameterSchema
+from .parameter_schema import ParameterSchema
 
 
 class Tool:
@@ -13,7 +11,7 @@ class Tool:
 
     @classmethod
     def create(cls, name: str, code_file: str, schema: ParameterSchema, description: str = None):
-        return cls(name, code_file, schema, description)
+        return cls(name, description, code_file, schema)
 
     def delete(self):
         """Delete this tool."""

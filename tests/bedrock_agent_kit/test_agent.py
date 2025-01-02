@@ -95,8 +95,6 @@ class TestAgent(unittest.TestCase):
                          description="The string to transform", required=True)
         tool = Tool("transform_string",  "Transforms strings", "transform_string.py",
                     schema)
-        # as_dict = tool.to_action_group_definition()
-        # print(as_dict)
         agent.attach_tool(tool)
 
         # Test tool interaction
