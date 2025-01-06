@@ -10,7 +10,7 @@ class Tool:
         self.description = description
 
     @classmethod
-    def create(cls, name: str, code_file: str, schema: ParameterSchema, description: str = None):
+    def create(cls, name: str, code_file: str, schema: ParameterSchema, description: str = None) -> "Tool":
         return cls(name, description, code_file, schema)
 
     def delete(self):

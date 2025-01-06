@@ -14,8 +14,29 @@ class ParamType(str, Enum):
 
 class ParameterSchema:
     """Defines a parameter for a lambda function"""
-    def __init__(self):
+
+    @dataclass
+    class _Param:
+        name: str
+        type: ParamType
+        description: str
+        required: bool = False
+
+        @classmethod
+        def create(cls, name: str, parameter_type: ParamType, description: str, required: bool = False) -> Self:
+            return cls(name, parameter_type, description, required)
+
+    def __init__(self, param: _Param = None):
         self._parameters = []
+        if param:
+            self._parameters.append(param)
+
+    @classmethod
+    def create(cls, name: str, parameter_type: ParamType, description: str, required: bool = False) \
+            -> "ParameterSchema":
+        """Create with an initial parameter (you can add more)"""
+        param = cls._Param.create(name, parameter_type, description, required)
+        return cls(param)
 
     def add_param(self, name: str, parameter_type: ParamType, description: str, required: bool = False):
         param = self._Param.create(name, parameter_type, description, required)
@@ -30,14 +51,3 @@ class ParameterSchema:
                 "required": param.required
             } for param in self._parameters
         }
-
-    @dataclass
-    class _Param:
-        name: str
-        type: ParamType
-        description: str
-        required: bool = False
-
-        @classmethod
-        def create(cls, name: str, parameter_type: ParamType, description: str, required: bool = False) -> Self:
-            return cls(name, parameter_type, description, required)

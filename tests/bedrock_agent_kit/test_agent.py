@@ -87,13 +87,12 @@ class TestAgent(unittest.TestCase):
     def test_agent_with_single_tool(self):
         """Test agent with lambda integration"""
         instructions = "Use the provided lambda tool to transform the string and return it to the user"
-
         agent = Agent.create(name=self.agent_name, instructions=instructions)
-
-        schema = ParameterSchema()
-        schema.add_param(name="input_string", parameter_type=ParamType.STRING,
-                         description="The string to transform", required=True)
-        tool = Tool("transform_string",  "Transforms strings", "transform_string.py",
+        schema = ParameterSchema.create(name="input_string",
+                                        parameter_type=ParamType.STRING,
+                                        description="The string to transform",
+                                        required=True)
+        tool = Tool("transform_string","Transforms strings","transform_string.py",
                     schema)
         agent.attach_tool(tool)
 
