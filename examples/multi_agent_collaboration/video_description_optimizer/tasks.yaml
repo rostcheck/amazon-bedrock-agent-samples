@@ -1,0 +1,58 @@
+# initial_review_task:
+#  description: >
+#    You are provided with a terse description of the video. In later steps, you will need to use
+#    your team to build a compelling description, title, and tags to help get the highest views
+#    and connect most effectively with its audience on YouTube. Based on the terse description,
+#    please identify questions for the user where you need more clarification
+#    to do the later work, and return a list of the most important questions (up to 7).
+#  expected_output: >
+#    A concise list of up to 7 questions for the user.
+
+video_description_task:
+  description: >
+    Here is a terse description of the video, with the user's answers to your earlier clarifying questions
+    Use your team to build a compelling description, title, and tags to help get the highest views
+    and connect most effectively with its audience on YouTube:
+    
+    initial terse description: {initial_video_description} 
+    channel url: {channel_url}
+    creators: {creator_names}
+    
+    User responses to clarifying questions:
+    {response_to_questions}
+  expected_output: >
+    An easy to copy-and-paste final output of the title, description, and hashtags for the user
+    to use in their YouTube video description.
+
+description_optimization_task:
+  description: >
+    Write a succinct description of the video, based on the available information from the user,
+    that is crafted to best connect with the audience and maximize engagement.
+  expected_output: >
+    A compelling and engaging description that will help the YouTube algorithm to effectively 
+    identify the most relevant audience for the video and improve click-through rate.
+
+hashtag_optimization_task:
+  description: >
+    Based on the video description, identify up to 5 hashtags that will best help the YouTube
+    algorithm to effectively identify the most relevant audience for the video.
+  expected_output: >
+    A list of up to 5 hashtags that will help the YouTube algorithm to effectively 
+    identify the most relevant audience for the video.
+
+title_optimization_task:
+  description: >
+    Based on the video description, identify a title that will best help the YouTube
+    algorithm to effectively identify the most relevant audience for the video.
+  expected_output: >
+    A title that will help the YouTube algorithm to effectively identify the most relevant 
+    audience for the video.
+
+final_output_task:
+  description: >
+    The team of collaborators has done a great job! Now that the optimized title, description, and 
+    hashtags have been generated, please combine them into a final output that the user can copy and 
+    paste into their YouTube video description.
+  expected_output: >
+    An easy to copy-and-paste final output of the title, description, and hashtags for the user
+    to use in their YouTube video description.

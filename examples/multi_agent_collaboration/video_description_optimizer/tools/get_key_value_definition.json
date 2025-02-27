@@ -1,0 +1,19 @@
+{
+    "code": "arn:aws:lambda:{region}:{account_id}:function:working_memory",
+    "definition": {
+        "name": "get_key_value",
+        "description": "Retrieves a value for a given key name from a DynamoDB table.",
+        "parameters": {
+            "key": {
+                "description": "The name of the key to store the value under.",
+                "type": "string",
+                "required": true
+            },
+            "table_name": {
+                "description": "The name of the DynamoDB table to use for storage.",
+                "type": "string",
+                "required": true
+            }
+        }
+    }
+}
