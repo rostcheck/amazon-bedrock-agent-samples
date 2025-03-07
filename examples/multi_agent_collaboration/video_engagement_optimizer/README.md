@@ -61,20 +61,20 @@ Follow instructions [here](/src/shared/working_memory/).
 1. Deploy Amazon Bedrock Agents
 
 ```bash
-python3 examples/multi_agent_collaboration/video_engagement_optimizer/main.py --recreate_agents "true"
+cd examples/multi_agent_collaboration/video_engagement_optimizer
+python3 main.py --recreate_agents "true"
 ```
 
 2. Invoke
 
 ```bash
-python3 examples/multi_agent_collaboration/video_engagement_optimizer/main.py \
---recreate_agents "false"
+python3 main.py --recreate_agents "false"
 ```
 
 3. Cleanup
 
 ```bash
-python3 examples/multi_agent_collaboration/video_engagement_optimizer/main.py --clean_up "true"
+python3 main.py --clean_up "true"
 ```
 
 
