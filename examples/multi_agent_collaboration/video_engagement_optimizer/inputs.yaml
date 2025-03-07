@@ -1,0 +1,14 @@
+video_channel: "AWS Developers"
+creator_names: "AWS Sr. Developer Advocate Mike Chambers"
+channel_url: "https://www.youtube.com/@awsdevelopers"
+initial_video_description: >
+  In this video Mike demonstrates how to create agents that can use tools using Bedrock Agents. This coding 
+  walkthrough shows how to create an Agent step by step.
+additional_information:
+  1. The video focuses on Bedrock Agents and how to give them tool access by attaching Action Groups backed by Lambda Functions
+  2. It is targeted at intermediate software developers
+  3. In the video, Mike creates lambda functions using Python
+  4. Giving agents access to tools allows them to solve problems that they otherwise can’t, such as telling the time or 
+     doing accurate math
+  5. The video is 19 minutes long
+  6. Most of the video is a coding demonstration with Mike building a Bedrock Agent in the AWS console

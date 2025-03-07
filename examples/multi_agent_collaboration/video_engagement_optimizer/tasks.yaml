@@ -17,12 +17,13 @@ video_description_task:
     initial terse description: {initial_video_description} 
     channel url: {channel_url}
     creators: {creator_names}
+    video_channel: {video_channel}
     
-    User responses to clarifying questions:
-    {response_to_questions}
+    Additional information:
+    {additional_information}
   expected_output: >
     An easy to copy-and-paste final output of the title, description, and hashtags for the user
-    to use in their YouTube video description.
+    to use in their YouTube video description.    
 
 description_optimization_task:
   description: >
