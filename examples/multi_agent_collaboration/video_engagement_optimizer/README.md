@@ -4,9 +4,13 @@ The video engagements optimizer constructs a team of social media expert agents 
 to optimize the title, description, and hashtags for a social media video. The output is a short
 document containing the optimized title, description, and hashtags.
 
-It demo uses a generic driver  architecture that can easily be changed to create new agent teams 
+Its demo uses a generic driver  architecture that can easily be changed to create new agent teams 
 and change the tasks, ie. to solve completely different problems, by changing only YAML file 
 configuration changes without making code changes.
+
+## Architecture Diagram
+
+![architecture](./architecture.png)
 
 ## Example Output
 TITLE:
